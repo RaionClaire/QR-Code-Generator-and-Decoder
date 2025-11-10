@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Generator & Decoder</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <style>
+    body {
+      background-image: url('images/tlou.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .drag-drop-zone {
+      border: 3px dashed rgba(255, 255, 255, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .drag-drop-zone.dragover {
+      border-color: #ed3bf6;
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    #videoContainer {
+      display: none;
+    }
+
+    #videoContainer.active {
+      display: block;
+    }
+
+    .color-picker-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .hidden-section {
+      display: none;
+    }
+
+    .visible-section {
+      display: block;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4">
+  <div class="glass-effect rounded-3xl shadow-2xl p-8 max-w-4xl w-full">
+    <h1 class="text-4xl font-bold text-white text-center mb-8 drop-shadow-lg">
+      QR Code ⸜(｡˃ ᵕ ˂ )⸝♡
+    </h1>
+
+    <div class="flex gap-4 mb-6">
+      <button id="tabGenerate" class="flex-1 bg-pink-300 text-white px-6 py-3 rounded-xl font-semibold">
+        Generate QR
+      </button>
+      <button id="tabDecode" class="flex-1 bg-gray-600 text-white px-6 py-3 rounded-xl font-semibold ">
+        Decode QR
+      </button>
+    </div>
+
+    <div id="generateSection" class="visible-section">
+      <div class="bg-white bg-opacity-90 rounded-2xl p-6 mb-6">
+        <label class="block text-gray-700 font-semibold mb-2">Enter Text or URL:</label>
+        <input id="text" type="text" placeholder="https://example.com or any text" 
+               class="border-2 border-gray-300 p-3 w-full rounded-lg focus:border-pink-300 focus:outline-none mb-4">
+        
+        <div class="flex items-center gap-4 mb-4">
+          <label class="text-gray-700 font-semibold">QR Color:</label>
+          <div class="color-picker-wrapper">
+            <input id="qrColor" type="color" value="#000000" 
+                   class="w-16 h-12 rounded cursor-pointer border-2 border-gray-300">
+          </div>
+          <span id="colorValue" class="text-gray-600 font-mono">#000000</span>
+        </div>
+
+        <button id="generate" class="w-full bg-pink-300 text-white px-6 py-3 rounded-xl font-semibold hover:bg-pink-400 transition transform hover:scale-105">
+          Generate QR Code
+        </button>
+      </div>
+
+      <div id="qrDisplay" class="hidden-section bg-white bg-opacity-90 rounded-2xl p-6 text-center">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Your QR Code:</h3>
+        <div class="flex justify-center mb-4">
+          <div id="qrcode" class="inline-block border-4 border-gray-300 rounded-lg shadow-lg p-2 bg-white"></div>
+        </div>
+        <button id="download" class="bg-green-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-green-700 transition transform hover:scale-105">
+          📥 Download QR Code
+        </button>
+      </div>
+    </div>
+
+    <div id="decodeSection" class="hidden-section">
+      <div id="dropZone" class="drag-drop-zone bg-white bg-opacity-90 rounded-2xl p-8 mb-6 text-center cursor-pointer">
+        <div class="text-6xl mb-4">📁</div>
+        <p class="text-gray-700 font-semibold text-lg mb-2">Drag & Drop QR Code Image Here</p>
+        <p class="text-gray-500 mb-4">or click to browse</p>
+        <input id="fileInput" type="file" accept="image/*" class="hidden">
+        <button id="browseBtn" class="bg-pink-300 text-white px-6 py-2 rounded-lg hover:bg-pink-400">
+          Browse Files
+        </button>
+      </div>
+
+      <div class="bg-white bg-opacity-90 rounded-2xl p-6 mb-6 text-center">
+        <button id="cameraBtn" class="bg-pink-300 text-white px-8 py-3 rounded-xl font-semibold hover:bg-pink-400 transition transform hover:scale-105 w-full">
+          📷 Open Camera to Scan
+        </button>
+        
+        <div id="videoContainer" class="mt-6">
+          <video id="video" class="w-full max-w-md mx-auto rounded-lg border-4 border-purple-500" autoplay></video>
+          <button id="stopCamera" class="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
+            Stop Camera
+          </button>
+        </div>
+      </div>
+
+      <div id="decodeResult" class="hidden-section bg-white bg-opacity-90 rounded-2xl p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Decoded Content:</h3>
+        <div class="bg-gray-100 p-4 rounded-lg border-2 border-green-500">
+          <p id="decodedText" class="text-gray-800 break-all font-mono"></p>
+        </div>
+        <button id="copyText" class="mt-4 bg-pink-300 text-white px-6 py-2 rounded-lg hover:bg-pink-400">
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Elements
+      const tabGenerate = document.getElementById("tabGenerate");
+      const tabDecode = document.getElementById("tabDecode");
+      const generateSection = document.getElementById("generateSection");
+      const decodeSection = document.getElementById("decodeSection");
+      const generateBtn = document.getElementById("generate");
+      const downloadBtn = document.getElementById("download");
+      const qrcodeContainer = document.getElementById("qrcode");
+      const textInput = document.getElementById("text");
+      const qrColorInput = document.getElementById("qrColor");
+      const colorValue = document.getElementById("colorValue");
+      const qrDisplay = document.getElementById("qrDisplay");
+      const dropZone = document.getElementById("dropZone");
+      const fileInput = document.getElementById("fileInput");
+      const browseBtn = document.getElementById("browseBtn");
+      const cameraBtn = document.getElementById("cameraBtn");
+      const stopCameraBtn = document.getElementById("stopCamera");
+      const video = document.getElementById("video");
+      const videoContainer = document.getElementById("videoContainer");
+      const decodeResult = document.getElementById("decodeResult");
+      const decodedText = document.getElementById("decodedText");
+      const copyTextBtn = document.getElementById("copyText");
+
+      let stream = null;
+      let currentQRCode = null;
+
+      tabGenerate.addEventListener("click", () => {
+        generateSection.classList.remove("hidden-section");
+        generateSection.classList.add("visible-section");
+        decodeSection.classList.remove("visible-section");
+        decodeSection.classList.add("hidden-section");
+        tabGenerate.classList.remove("bg-gray-600");
+        tabGenerate.classList.add("bg-pink-300");
+        tabDecode.classList.remove("bg-pink-300");
+        tabDecode.classList.add("bg-gray-600");
+        stopCameraStream();
+      });
+
+      tabDecode.addEventListener("click", () => {
+        decodeSection.classList.remove("hidden-section");
+        decodeSection.classList.add("visible-section");
+        generateSection.classList.remove("visible-section");
+        generateSection.classList.add("hidden-section");
+        tabDecode.classList.remove("bg-gray-600");
+        tabDecode.classList.add("bg-pink-300");
+        tabGenerate.classList.remove("bg-pink-300");
+        tabGenerate.classList.add("bg-gray-600");
+      });
+
+      qrColorInput.addEventListener("input", (e) => {
+        colorValue.textContent = e.target.value;
+      });
+
+      generateBtn.addEventListener("click", () => {
+        const text = textInput.value.trim();
+        if (!text) {
+          alert("⚠️ Please enter some text or URL");
+          return;
+        }
+
+        const color = qrColorInput.value;
+
+        try {
+          qrcodeContainer.innerHTML = "";
+          
+          currentQRCode = new QRCode(qrcodeContainer, {
+            text: text,
+            width: 300,
+            height: 300,
+            colorDark: color,
+            colorLight: "#FFFFFF",
+            correctLevel: QRCode.CorrectLevel.H
+          });
+
+          qrDisplay.classList.remove("hidden-section");
+          qrDisplay.classList.add("visible-section");
+          console.log("✅ QR code generated!");
+        } catch (err) {
+          console.error(err);
+          alert("❌ Error generating QR code: " + err.message);
+        }
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        const canvas = qrcodeContainer.querySelector("canvas");
+        if (canvas) {
+          const link = document.createElement("a");
+          link.download = "qr-code.png";
+          link.href = canvas.toDataURL("image/png");
+          link.click();
+        } else {
+          alert("⚠️ Please generate a QR code first!");
+        }
+      });
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          decodeQRFromFile(file);
+        } else {
+          alert("⚠️ Please drop a valid image file");
+        }
+      });
+
+      browseBtn.addEventListener("click", () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          decodeQRFromFile(file);
+        }
+      });
+
+      function decodeQRFromFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const tempCanvas = document.createElement("canvas");
+            const ctx = tempCanvas.getContext("2d");
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            
+            if (code) {
+              showDecodedResult(code.data);
+            } else {
+              alert("❌ No QR code found in the image");
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      cameraBtn.addEventListener("click", async () => {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+          video.srcObject = stream;
+          videoContainer.classList.add("active");
+          scanQRFromCamera();
+        } catch (err) {
+          console.error(err);
+          alert("❌ Unable to access camera. Please check permissions.");
+        }
+      });
+
+      stopCameraBtn.addEventListener("click", () => {
+        stopCameraStream();
+      });
+
+      function stopCameraStream() {
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = null;
+          videoContainer.classList.remove("active");
+        }
+      }
+
+      function scanQRFromCamera() {
+        if (!stream) return;
+
+        const tempCanvas = document.createElement("canvas");
+        const ctx = tempCanvas.getContext("2d");
+
+        function scan() {
+          if (!stream) return;
+
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            const imageData = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+              showDecodedResult(code.data);
+              stopCameraStream();
+              return;
+            }
+          }
+
+          requestAnimationFrame(scan);
+        }
+
+        scan();
+      }
+
+      function showDecodedResult(text) {
+        decodedText.textContent = text;
+        decodeResult.classList.remove("hidden-section");
+        decodeResult.classList.add("visible-section");
+      }
+
+      copyTextBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(decodedText.textContent).then(() => {
+          const originalText = copyTextBtn.textContent;
+          copyTextBtn.textContent = "✅ Copied!";
+          setTimeout(() => {
+            copyTextBtn.textContent = originalText;
+          }, 2000);
+        });
+      });
+    });
+  </script>
+</body>
+</html>
